@@ -1,2 +1,760 @@
 # soundwave2
 파동의 진폭, 진동수, 파형으로 소리의 특성 분석하기
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>소리의 특성(진폭, 진동수, 파형) 탐구 시뮬레이터</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- 헤더 -->
+  <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <span class="bg-indigo-600 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-indigo-100">2022 개정 교육과정 [9과10-04]</span>
+        <h1 class="text-2xl font-black text-white mt-1 flex items-center gap-2">
+          <i class="fa-solid fa-wave-square text-indigo-400"></i> 소리의 3요소 탐구 시뮬레이터
+        </h1>
+      </div>
+      <div class="text-slate-400 text-sm text-center md:text-right">
+        진폭 · 진동수 · 파형에 따른 소리의 변화를 눈과 귀로 확인해 보세요!
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- 왼쪽: 시뮬레이터 캔버스 및 시각화 영역 (8/12) -->
+    <div class="lg:col-span-8 flex flex-col gap-4">
+      
+      <!-- 오실로스코프 / 파동 시각화 뷰어 -->
+      <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 shadow-xl relative overflow-hidden flex-1 flex flex-col min-h-[350px]">
+        <!-- 캔버스 정보 헤더 -->
+        <div class="flex justify-between items-center mb-2 z-10">
+          <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs text-slate-300">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>실시간 파동 모니터</span>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-guide" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs border border-slate-700 transition flex items-center gap-1">
+              <i class="fa-solid fa-circle-info"></i> 가이드선 보기
+            </button>
+            <button id="btn-particle" class="bg-indigo-950 text-indigo-300 hover:bg-indigo-900 px-3 py-1.5 rounded-lg text-xs border border-indigo-800 transition flex items-center gap-1 font-semibold">
+              <i class="fa-solid fa-ellipsis"></i> 매질(입자) 표시
+            </button>
+          </div>
+        </div>
+
+        <!-- 메인 캔버스 -->
+        <div class="relative flex-1 bg-slate-950 rounded-xl border border-slate-900 overflow-hidden flex items-center justify-center">
+          <canvas id="wave-canvas" class="w-full h-full absolute inset-0"></canvas>
+          
+          <!-- Web Audio 미활성화 시 안내 -->
+          <div id="audio-prompt" class="absolute inset-0 bg-slate-950/90 flex flex-col justify-center items-center text-center p-6 transition-all duration-300 z-20">
+            <div class="w-16 h-16 bg-indigo-600/20 text-indigo-400 rounded-full flex items-center justify-center mb-4 text-2xl border border-indigo-500/30">
+              <i class="fa-solid fa-volume-high animate-bounce"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">사운드 엔진 시작하기</h3>
+            <p class="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
+              본 시뮬레이터는 소리를 직접 들으며 탐구할 수 있습니다. 아래 버튼을 눌러 브라우저 오디오 기능을 활성화해 주세요.
+            </p>
+            <button id="btn-start-audio" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-600/30 transition-all transform active:scale-95 flex items-center gap-2">
+              <i class="fa-solid fa-play"></i> 소리 켜고 탐구 시작하기
+            </button>
+          </div>
+        </div>
+
+        <!-- 하단 상태 표시 바 -->
+        <div class="grid grid-cols-3 gap-2 mt-3 text-center text-xs text-slate-400 font-mono z-10 bg-slate-900/50 p-2 rounded-lg border border-slate-800/80">
+          <div>진폭(A): <span id="val-amp-status" class="text-pink-400 font-bold">50%</span></div>
+          <div>진동수(f): <span id="val-freq-status" class="text-amber-400 font-bold">440 Hz</span></div>
+          <div>파형(Wave): <span id="val-type-status" class="text-cyan-400 font-bold">사인파</span></div>
+        </div>
+      </div>
+
+      <!-- 탐구 매뉴얼 & 미션 컨트롤러 -->
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 shadow-lg">
+        <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-lightbulb text-amber-400"></i> 소리 개념 탐구 미션
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="mission-container">
+          <button onclick="loadMission(1)" class="mission-btn p-3 bg-slate-800 hover:bg-slate-700/80 rounded-xl text-left border border-slate-700 text-sm transition-all duration-200">
+            <div class="font-bold text-indigo-400 text-xs mb-1">미션 1. 크기 조절하기</div>
+            <div class="text-xs text-slate-300">"큰 소리"와 "작은 소리"는 파동에서 무엇이 다를까요?</div>
+          </button>
+          
+          <button onclick="loadMission(2)" class="mission-btn p-3 bg-slate-800 hover:bg-slate-700/80 rounded-xl text-left border border-slate-700 text-sm transition-all duration-200">
+            <div class="font-bold text-amber-400 text-xs mb-1">미션 2. 높낮이 조절하기</div>
+            <div class="text-xs text-slate-300">"높은 소리"와 "낮은 소리"는 파동에서 무엇이 다를까요?</div>
+          </button>
+
+          <button onclick="loadMission(3)" class="mission-btn p-3 bg-slate-800 hover:bg-slate-700/80 rounded-xl text-left border border-slate-700 text-sm transition-all duration-200">
+            <div class="font-bold text-cyan-400 text-xs mb-1">미션 3. 목소리 색깔(음색)</div>
+            <div class="text-xs text-slate-300">악기마다 소리가 다른 이유는 무엇일까요?</div>
+          </button>
+        </div>
+
+        <!-- 미션 피드백 안내창 -->
+        <div id="mission-info-box" class="hidden mt-3 p-4 bg-indigo-950/60 border border-indigo-800/50 rounded-xl text-sm text-indigo-200">
+          <div class="flex justify-between items-start">
+            <div>
+              <span id="mission-title" class="font-bold text-white block mb-1">미션 제목</span>
+              <p id="mission-desc" class="text-xs text-slate-300">미션 내용 설명</p>
+            </div>
+            <button onclick="closeMission()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="mt-3 flex items-center justify-between bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+            <span id="mission-checker" class="text-xs text-amber-300 font-semibold"><i class="fa-solid fa-spinner animate-spin"></i> 목표를 맞춰보세요...</span>
+            <button id="btn-mission-verify" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-1.5 rounded-md transition">확인하기</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 오른쪽: 컨트롤러 및 개념 매치업 패널 (4/12) -->
+    <div class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- 컨트롤 파널 -->
+      <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col gap-6">
+        <h2 class="text-lg font-black text-white border-b border-slate-700 pb-3 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-400"></i> 파동 제어 센터
+        </h2>
+
+        <!-- 오디오 마스터 컨트롤 -->
+        <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700/50">
+          <div class="flex items-center gap-2">
+            <div id="status-light" class="w-3 h-3 rounded-full bg-red-500"></div>
+            <span id="status-text" class="text-xs font-semibold text-slate-300">소리 일시정지됨</span>
+          </div>
+          <button id="btn-toggle-sound" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center gap-2">
+            <i class="fa-solid fa-play"></i> 소리 재생
+          </button>
+        </div>
+
+        <!-- 1. 진폭 컨트롤 -->
+        <div class="flex flex-col gap-2">
+          <div class="flex justify-between items-center">
+            <label class="text-sm font-bold text-pink-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-arrows-up-down"></i> 진폭 (Amplitude)
+            </label>
+            <span class="text-xs font-mono bg-pink-950/80 text-pink-300 px-2 py-0.5 rounded border border-pink-900" id="val-amp-text">50%</span>
+          </div>
+          <p class="text-xs text-slate-400">진폭이 커질수록 매질이 크게 흔들리며, <strong>큰 소리(Loudness)</strong>가 납니다.</p>
+          <input type="range" id="input-amp" min="0" max="100" value="50" class="w-full accent-pink-500 bg-slate-700 h-2 rounded-lg cursor-pointer">
+        </div>
+
+        <!-- 2. 진동수 컨트롤 -->
+        <div class="flex flex-col gap-2">
+          <div class="flex justify-between items-center">
+            <label class="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-wave-square"></i> 진동수 (Frequency)
+            </label>
+            <span class="text-xs font-mono bg-amber-950/80 text-amber-300 px-2 py-0.5 rounded border border-amber-900" id="val-freq-text">440 Hz</span>
+          </div>
+          <p class="text-xs text-slate-400">진동수가 클수록 파형이 촘촘해지며, <strong>높은 소리(Pitch)</strong>가 납니다.</p>
+          <input type="range" id="input-freq" min="150" max="850" value="440" class="w-full accent-amber-500 bg-slate-700 h-2 rounded-lg cursor-pointer">
+        </div>
+
+        <!-- 3. 파형 선택 -->
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-bold text-cyan-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-signature"></i> 파형 (Waveform / 음색)
+          </label>
+          <p class="text-xs text-slate-400 mb-1">파동의 모양은 소리의 독특한 색깔인 <strong>소리의 맵시(Timbre)</strong>를 결정합니다.</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button data-type="sine" class="wave-type-btn py-2.5 px-3 bg-indigo-600 text-white rounded-lg text-xs font-bold border border-indigo-500 transition-all flex flex-col items-center gap-1">
+              <span>사인파 (Pure)</span>
+              <span class="text-[10px] text-indigo-200 font-normal">부드러운 소리</span>
+            </button>
+            <button data-type="triangle" class="wave-type-btn py-2.5 px-3 bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold border border-slate-700 transition-all flex flex-col items-center gap-1">
+              <span>삼각파 (Triangle)</span>
+              <span class="text-[10px] text-slate-400 font-normal">플루트 느낌</span>
+            </button>
+            <button data-type="square" class="wave-type-btn py-2.5 px-3 bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold border border-slate-700 transition-all flex flex-col items-center gap-1">
+              <span>사각파 (Square)</span>
+              <span class="text-[10px] text-slate-400 font-normal">레트로 오락실음</span>
+            </button>
+            <button data-type="sawtooth" class="wave-type-btn py-2.5 px-3 bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold border border-slate-700 transition-all flex flex-col items-center gap-1">
+              <span>톱니파 (Sawtooth)</span>
+              <span class="text-[10px] text-slate-400 font-normal">바이올린 느낌</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 탐구 정리 박스 -->
+      <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-5 shadow-xl">
+        <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap text-indigo-400"></i> 파동 정리 노트
+        </h3>
+        <ul class="text-xs text-slate-300 space-y-3 leading-relaxed">
+          <li class="flex items-start gap-2">
+            <span class="text-pink-400 font-bold mt-0.5">•</span>
+            <div>
+              <strong class="text-pink-400">진폭(Amplitude)</strong>: 진동 중심에서 마루(또는 골)까지의 거리. 소리의 세기(크기)를 결정함.
+            </div>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-amber-400 font-bold mt-0.5">•</span>
+            <div>
+              <strong class="text-amber-400">진동수(Frequency)</strong>: 1초 동안 매질이 진동하는 횟수(Hz). 소리의 높낮이를 결정함.
+            </div>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-cyan-400 font-bold mt-0.5">•</span>
+            <div>
+              <strong class="text-cyan-400">파형(Waveform)</strong>: 파동의 모양새. 목소리나 악기의 독특한 개성인 '음색(소리의 맵시)'을 결정함.
+            </div>
+          </li>
+          <li class="flex items-start gap-2 border-t border-slate-700/60 pt-2 mt-2">
+            <span class="text-red-400 font-bold mt-0.5">•</span>
+            <div>
+              <strong class="text-red-400">매질의 특징</strong>: 파동이 전달될 때 매질(붉은색 점)은 위아래로 진동만 할 뿐, 에너지를 따라 오른쪽으로 직접 이동하지 않습니다!
+            </div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 알림 토스트 모달 -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border-2 border-indigo-500 text-white px-5 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-50 flex items-center gap-3">
+    <i id="toast-icon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+    <span id="toast-message" class="text-sm font-semibold">알림 메시지입니다.</span>
+  </div>
+
+  <footer class="bg-slate-950 border-t border-slate-800 py-4 px-6 text-center text-xs text-slate-500">
+    &copy; 2026 과학 교육 플랫폼 - 파동 및 소리의 물리적 성질 학습 시뮬레이터 (2022 개정 중학 과학 연계)
+  </footer>
+
+  <script>
+    // --- 글로벌 변수 및 설정 ---
+    const canvas = document.getElementById('wave-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // 오디오 컨텍스트 및 상태
+    let audioCtx = null;
+    let oscillator = null;
+    let gainNode = null;
+    let isSoundPlaying = false;
+    let currentWaveType = 'sine'; // sine, square, sawtooth, triangle
+
+    // 탐구 상태값
+    let amplitude = 50; // 0 ~ 100
+    let frequency = 440; // 150 ~ 850 Hz
+    let showGuide = true;
+    let showParticles = true;
+
+    // 미션 관련 상태
+    let currentMissionId = null;
+
+    // 캔버스 크기 맞추기 함수
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth * window.devicePixelRatio;
+      canvas.height = container.clientHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- DOM 엘리먼트 맵핑 ---
+    const inputAmp = document.getElementById('input-amp');
+    const inputFreq = document.getElementById('input-freq');
+    const valAmpText = document.getElementById('val-amp-text');
+    const valFreqText = document.getElementById('val-freq-text');
+    const valAmpStatus = document.getElementById('val-amp-status');
+    const valFreqStatus = document.getElementById('val-freq-status');
+    const valTypeStatus = document.getElementById('val-type-status');
+
+    const btnToggleSound = document.getElementById('btn-toggle-sound');
+    const btnGuide = document.getElementById('btn-guide');
+    const btnParticle = document.getElementById('btn-particle');
+    const btnStartAudio = document.getElementById('btn-start-audio');
+    const audioPrompt = document.getElementById('audio-prompt');
+    const statusLight = document.getElementById('status-light');
+    const statusText = document.getElementById('status-text');
+
+    // --- 이벤트 리스너 설정 ---
+
+    // 1. 진폭 슬라이더 변경
+    inputAmp.addEventListener('input', (e) => {
+      amplitude = parseInt(e.target.value);
+      updateValues();
+    });
+
+    // 2. 진동수 슬라이더 변경
+    inputFreq.addEventListener('input', (e) => {
+      frequency = parseInt(e.target.value);
+      updateValues();
+    });
+
+    // 3. 파형 버튼 클릭 이벤트
+    document.querySelectorAll('.wave-type-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        // 기존 활성 스타일 제거
+        document.querySelectorAll('.wave-type-btn').forEach(btn => {
+          btn.className = "wave-type-btn py-2.5 px-3 bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-lg text-xs font-bold border border-slate-700 transition-all flex flex-col items-center gap-1";
+        });
+        // 현재 버튼 활성화 스타일 지정
+        button.className = "wave-type-btn py-2.5 px-3 bg-indigo-600 text-white rounded-lg text-xs font-bold border border-indigo-500 transition-all flex flex-col items-center gap-1";
+        
+        currentWaveType = button.getAttribute('data-type');
+        updateValues();
+      });
+    });
+
+    // 4. 사운드 켜기/끄기
+    btnToggleSound.addEventListener('click', toggleSound);
+
+    // 5. 가이드선 보기 토글
+    btnGuide.addEventListener('click', () => {
+      showGuide = !showGuide;
+      btnGuide.className = showGuide 
+        ? "bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs border border-slate-700 transition flex items-center gap-1"
+        : "bg-slate-900 text-slate-500 px-3 py-1.5 rounded-lg text-xs border border-slate-800 transition flex items-center gap-1";
+    });
+
+    // 6. 매질 표시 토글
+    btnParticle.addEventListener('click', () => {
+      showParticles = !showParticles;
+      btnParticle.className = showParticles
+        ? "bg-indigo-950 text-indigo-300 hover:bg-indigo-900 px-3 py-1.5 rounded-lg text-xs border border-indigo-800 transition flex items-center gap-1 font-semibold"
+        : "bg-slate-900 text-slate-500 px-3 py-1.5 rounded-lg text-xs border border-slate-800 transition flex items-center gap-1";
+    });
+
+    // 7. 오디오 최초 시작 버튼
+    btnStartAudio.addEventListener('click', () => {
+      initAudio();
+      audioPrompt.classList.add('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        audioPrompt.style.display = 'none';
+      }, 300);
+    });
+
+    // --- 오디오 관련 함수 (Web Audio API) ---
+    function initAudio() {
+      if (audioCtx) return;
+      
+      try {
+        // 오디오 컨텍스트 초기화
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 게인 노드 생성 (볼륨 조절용)
+        gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime); // 초기 소리 0 (뮤트)
+        gainNode.connect(audioCtx.destination);
+        
+        // 오실레이터(발진기) 생성 및 재생 시작
+        oscillator = audioCtx.createOscillator();
+        oscillator.type = currentWaveType;
+        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        oscillator.start();
+        
+        // 소리 활성화 상태 변경
+        isSoundPlaying = true;
+        updateAudioEngine();
+      } catch (e) {
+        showToast("오디오 엔진을 시작할 수 없습니다. 브라우저 설정을 확인해 주세요.", "error");
+      }
+    }
+
+    function toggleSound() {
+      if (!audioCtx) {
+        initAudio();
+        audioPrompt.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+          audioPrompt.style.display = 'none';
+        }, 300);
+        return;
+      }
+
+      // 오디오 안전 재가동
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      isSoundPlaying = !isSoundPlaying;
+      updateAudioEngine();
+    }
+
+    function updateAudioEngine() {
+      if (!audioCtx) return;
+
+      if (isSoundPlaying) {
+        // 소리 켬: 진폭에 비례하여 게인 조정 (귀 보호를 위해 최대 게인 제한 0.15)
+        const targetVolume = (amplitude / 100) * 0.15;
+        gainNode.gain.setTargetAtTime(targetVolume, audioCtx.currentTime, 0.05);
+        
+        btnToggleSound.innerHTML = '<i class="fa-solid fa-pause"></i> 소리 일시정지';
+        btnToggleSound.className = "bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center gap-2";
+        statusLight.className = "w-3 h-3 rounded-full bg-emerald-500 animate-pulse";
+        statusText.textContent = "소리 재생 중...";
+      } else {
+        // 소리 끔
+        gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        
+        btnToggleSound.innerHTML = '<i class="fa-solid fa-play"></i> 소리 재생';
+        btnToggleSound.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center gap-2";
+        statusLight.className = "w-3 h-3 rounded-full bg-red-500";
+        statusText.textContent = "소리 일시정지됨";
+      }
+
+      // 오실레이터 주파수 및 파형 갱신
+      oscillator.type = currentWaveType;
+      oscillator.frequency.setTargetAtTime(frequency, audioCtx.currentTime, 0.05);
+    }
+
+    // --- 수치 표시 동기화 함수 ---
+    function updateValues() {
+      valAmpText.textContent = `${amplitude}%`;
+      valFreqText.textContent = `${frequency} Hz`;
+      
+      valAmpStatus.textContent = `${amplitude}%`;
+      valFreqStatus.textContent = `${frequency} Hz`;
+      
+      let typeKorean = "사인파";
+      if (currentWaveType === 'triangle') typeKorean = "삼각파";
+      else if (currentWaveType === 'square') typeKorean = "사각파";
+      else if (currentWaveType === 'sawtooth') typeKorean = "톱니파";
+      valTypeStatus.textContent = typeKorean;
+
+      // 실시간 오디오 업데이트
+      updateAudioEngine();
+
+      // 미션 체크 수행
+      checkMissionProgress();
+    }
+
+    // --- 파동 캔버스 렌더링 루프 ---
+    let phase = 0; // 파동의 진행 상황을 표현하는 위상 변수
+
+    function draw() {
+      const w = canvas.width / window.devicePixelRatio;
+      const h = canvas.height / window.devicePixelRatio;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      // 모눈종이 격자 그리기 (배경 격자)
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      const gridSize = 25;
+      for (let x = 0; x < w; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y < h; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // 진동 중심 수평선 (기준선)
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+      ctx.setLineDash([]); // 대시 라인 초기화
+
+      // 기준선의 명칭 표시
+      if (showGuide) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('진동 중심선', 15, h / 2 - 8);
+      }
+
+      // 파동 시각화 파라미터 셋팅
+      // 진폭 스케일 (0 ~ 100 슬라이더를 캔버스 픽셀 높이에 맞춰 보정)
+      const ampScale = (amplitude / 100) * (h * 0.35); 
+      // 주파수 가중치 (슬라이더 범위 150~850을 캔버스 가로 화면 주기에 최적화)
+      const waveFreq = (frequency / 100) * 0.012; 
+
+      // 1. 파동 실선 그리기
+      ctx.beginPath();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = getWaveColor();
+      
+      for (let x = 0; x < w; x++) {
+        const y = calculateWaveY(x, waveFreq, ampScale, h / 2);
+        if (x === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // 2. 가이드선 및 물리 법칙 텍스트 렌더링
+      if (showGuide && amplitude > 2) {
+        // 진폭 표시선 (가장 먼저 나오는 마루 부근에 표시)
+        const targetXForAmp = w * 0.25;
+        const targetYForAmp = calculateWaveY(targetXForAmp, waveFreq, ampScale, h / 2);
+        
+        ctx.strokeStyle = '#f43f5e'; // 핑크색 진폭 표시선
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(targetXForAmp, h / 2);
+        ctx.lineTo(targetXForAmp, targetYForAmp);
+        ctx.stroke();
+
+        // 화살표 깃 모양 보조선
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(targetXForAmp, targetYForAmp, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('진폭(A)', targetXForAmp + 8, h / 2 - (h / 2 - targetYForAmp) / 2 + 3);
+
+        // 파장 표시 (이웃한 마루와 마루 사이의 거리 표시)
+        // 사인파 기반으로 한 파장의 크기 계산: 주기 = 2*PI / waveFreq
+        const wavelength = (2 * Math.PI) / waveFreq;
+        
+        // 대략 첫 마루와 다음 마루 좌표 계산
+        // x = 0 인근 마루 찾기
+        const xPeak1 = (Math.PI / 2 - phase) / waveFreq;
+        const xPeak2 = xPeak1 + wavelength;
+
+        if (xPeak1 > 0 && xPeak2 < w) {
+          ctx.strokeStyle = '#eab308'; // 주황색 파장선
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          // 두 마루의 높이에서 파장선 그리기
+          const peakY = h / 2 - ampScale;
+          ctx.moveTo(xPeak1, peakY - 10);
+          ctx.lineTo(xPeak2, peakY - 10);
+          ctx.stroke();
+
+          // 양쪽 끝 화살표 깃 그리기
+          ctx.beginPath();
+          ctx.moveTo(xPeak1, peakY - 14); ctx.lineTo(xPeak1, peakY - 6);
+          ctx.moveTo(xPeak2, peakY - 14); ctx.lineTo(xPeak2, peakY - 6);
+          ctx.stroke();
+
+          ctx.fillStyle = '#eab308';
+          ctx.fillText('1파장(주기)', (xPeak1 + xPeak2) / 2 - 25, peakY - 18);
+        }
+      }
+
+      // 3. 매질 입자 그리기 (매질은 제자리에서 진동만 함!)
+      if (showParticles) {
+        const particleSpacing = 20;
+        ctx.fillStyle = '#38bdf8'; // 기본 입자 하늘색
+
+        for (let px = 10; px < w; px += particleSpacing) {
+          // 각 입자는 파동 함수에 맞춘 y값을 가짐
+          const py = calculateWaveY(px, waveFreq, ampScale, h / 2);
+          
+          ctx.beginPath();
+          // 매질의 특정 위치를 강조하기 위해 7번째 입자는 큰 빨간색으로 그리기
+          if (px > w * 0.45 && px < w * 0.45 + particleSpacing) {
+            ctx.fillStyle = '#ef4444'; // 매질 학습 핵심용 빨간색 특수 입자
+            ctx.arc(px, py, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            if (showGuide) {
+              // 제자리 진동 가이드 라인 점선 표시
+              ctx.strokeStyle = '#ef4444';
+              ctx.setLineDash([2, 3]);
+              ctx.beginPath();
+              ctx.moveTo(px, h / 2 - ampScale - 10);
+              ctx.lineTo(px, h / 2 + ampScale + 10);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              
+              ctx.font = 'bold 10px sans-serif';
+              ctx.fillText('매질의 상하진동', px - 35, h / 2 + ampScale + 25);
+            }
+          } else {
+            ctx.fillStyle = '#38bdf8';
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      // 속도 조절: 주파수가 높을수록 파동이 움직이는 속도도 증가하여 시각적 직관성 부여
+      // (현실의 음속은 주파수에 관계없이 대략 일정하지만, 교과서적 이해를 위해 주파수가 높을수록 매질의 흔들림이 더 역동적이게 보이도록 연동)
+      phase -= 0.03 + (frequency / 1000) * 0.1; 
+      
+      requestAnimationFrame(draw);
+    }
+
+    // 파형에 따른 Y축 계산 함수
+    function calculateWaveY(x, freq, amp, center) {
+      const angle = x * freq + phase;
+      let waveValue = 0;
+
+      switch (currentWaveType) {
+        case 'sine':
+          waveValue = Math.sin(angle);
+          break;
+        case 'triangle':
+          // 삼각파 구현: -1 ~ 1 범위 왕복
+          waveValue = (2 / Math.PI) * Math.asin(Math.sin(angle));
+          break;
+        case 'square':
+          // 사각파 구현: 사인 부호에 따라 -1 또는 1
+          waveValue = Math.sin(angle) >= 0 ? 1 : -1;
+          break;
+        case 'sawtooth':
+          // 톱니파 구현
+          waveValue = (2 / Math.PI) * (angle % Math.PI) - 1;
+          if (Math.floor(angle / Math.PI) % 2 === 0) {
+            waveValue = -waveValue;
+          }
+          break;
+      }
+
+      return center + waveValue * amp;
+    }
+
+    // 파형 종류별 선 컬러 정의
+    function getWaveColor() {
+      switch (currentWaveType) {
+        case 'sine': return '#6366f1'; // Indigo
+        case 'triangle': return '#10b981'; // Emerald
+        case 'square': return '#f43f5e'; // Rose
+        case 'sawtooth': return '#06b6d4'; // Cyan
+        default: return '#6366f1';
+      }
+    }
+
+    // 애니메이션 즉시 시작
+    requestAnimationFrame(draw);
+
+    // --- 미션 데이터 및 제어 로직 ---
+    const missions = {
+      1: {
+        title: "미션 1. 교장 선생님의 웅장하고 큰 훈화 소리 만들기!",
+        desc: "진폭을 높이고, 낮은 진동수(낮은 음)로 조절하여 웅장하고 '큰 소리'를 파동으로 표현해 봅시다. (조건: 진폭 80% 이상, 진동수 250Hz 이하)",
+        validator: () => {
+          return amplitude >= 80 && frequency <= 250;
+        },
+        successMsg: "성공! 진폭이 커지니 소리가 매우 크게 웅웅거리네요. 진폭은 '소리의 크기'와 연관됩니다!"
+      },
+      2: {
+        title: "미션 2. 아기 새의 맑고 높은 지저귐 소리 만들기!",
+        desc: "진동수를 높여서 높은 피치의 맑은 소리를 만들어봅시다. 진폭은 적절한 크기로 설정하세요. (조건: 진폭 30%~60% 사이, 진동수 750Hz 이상)",
+        validator: () => {
+          return amplitude >= 30 && amplitude <= 60 && frequency >= 750;
+        },
+        successMsg: "정답! 진동수가 높아 파동이 매우 촘촘해지며, 찢어지는 듯한 높은 고음이 생성됩니다. 진동수는 '소리의 높낮이'를 결정합니다!"
+      },
+      3: {
+        title: "미션 3. 특수 전자기기 효과음(사각파) 만들기!",
+        desc: "파형을 '사각파'로 선택하고, 진동수를 550Hz~650Hz 사이의 기계음 영역으로 맞춰 개성 있는 음색을 만들어보세요.",
+        validator: () => {
+          return currentWaveType === 'square' && frequency >= 550 && frequency <= 650;
+        },
+        successMsg: "성공! 파동의 모양이 뾰족하고 네모나게 변하면서, 일반 사인파와 달리 까칠까칠하고 기계적인 독특한 '음색(소리의 맵시)'이 만들어졌습니다!"
+      }
+    };
+
+    function loadMission(id) {
+      currentMissionId = id;
+      const m = missions[id];
+      
+      // 모든 버튼 스타일 초기화 후 선택한 버튼 강조
+      document.querySelectorAll('.mission-btn').forEach((btn, index) => {
+        if (index === id - 1) {
+          btn.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-500/30', 'bg-slate-700/60');
+        } else {
+          btn.classList.remove('border-indigo-500', 'ring-2', 'ring-indigo-500/30', 'bg-slate-700/60');
+        }
+      });
+
+      document.getElementById('mission-info-box').classList.remove('hidden');
+      document.getElementById('mission-title').textContent = m.title;
+      document.getElementById('mission-desc').textContent = m.desc;
+      
+      checkMissionProgress();
+    }
+
+    function closeMission() {
+      currentMissionId = null;
+      document.getElementById('mission-info-box').classList.add('hidden');
+      document.querySelectorAll('.mission-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-500', 'ring-2', 'ring-indigo-500/30', 'bg-slate-700/60');
+      });
+    }
+
+    function checkMissionProgress() {
+      if (currentMissionId === null) return;
+      
+      const m = missions[currentMissionId];
+      const checker = document.getElementById('mission-checker');
+      
+      if (m.validator()) {
+        checker.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> 미션 달성 조건 만족!';
+        checker.className = "text-xs text-emerald-400 font-bold";
+      } else {
+        checker.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> 아직 목표 조건에 맞지 않습니다.';
+        checker.className = "text-xs text-amber-300 font-semibold";
+      }
+    }
+
+    // 미션 확인용 클릭 핸들러
+    document.getElementById('btn-mission-verify').addEventListener('click', () => {
+      if (currentMissionId === null) return;
+      
+      const m = missions[currentMissionId];
+      if (m.validator()) {
+        showToast(m.successMsg, "success");
+      } else {
+        showToast("아직 미션 조건이 맞지 않습니다. 슬라이더나 파형을 더 조절해 보세요!", "info");
+      }
+    });
+
+    // --- 토스트 알림 메시지 기능 ---
+    function showToast(message, type = "info") {
+      const toast = document.getElementById('toast');
+      const toastIcon = document.getElementById('toast-icon');
+      const toastMsg = document.getElementById('toast-message');
+
+      toastMsg.textContent = message;
+
+      if (type === "success") {
+        toast.className = "fixed bottom-6 right-6 bg-slate-800 border-2 border-emerald-500 text-white px-5 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 z-50 flex items-center gap-3";
+        toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+      } else if (type === "error") {
+        toast.className = "fixed bottom-6 right-6 bg-slate-800 border-2 border-rose-500 text-white px-5 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 z-50 flex items-center gap-3";
+        toastIcon.className = "fa-solid fa-circle-xmark text-rose-400 text-lg";
+      } else {
+        toast.className = "fixed bottom-6 right-6 bg-slate-800 border-2 border-indigo-500 text-white px-5 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 z-50 flex items-center gap-3";
+        toastIcon.className = "fa-solid fa-circle-info text-indigo-400 text-lg";
+      }
+
+      // 4초 뒤 토스트 닫기
+      setTimeout(() => {
+        toast.className = "fixed bottom-6 right-6 bg-slate-800 border-2 border-indigo-500 text-white px-5 py-3 rounded-xl shadow-2xl transition-all duration-300 transform translate-y-20 opacity-0 z-50 flex items-center gap-3";
+      }, 4000);
+    }
+  </script>
+</body>
+</html>
